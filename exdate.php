@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" dir="ltr">
   <head>
     <meta charset="utf-8">
@@ -7,7 +7,7 @@
     <title>HSE TIMETABLE</title>
   </head>
   <body>
-<div class="parse">
+<div class="parse" id="Parse">
 <?
 
 // $screenWidth='<script type="text/javascript">document.write(screen.width);</script>';
@@ -21,7 +21,6 @@ require_once "Classes/PHPExcel.php";
 require_once "Classes/PHPExcel/IOFactory.php";
 
 
-
 function parser(){
   $url = 'http://students.perm.hse.ru/timetable/';
   $file = file_get_contents($url);
@@ -32,19 +31,19 @@ function parser(){
   $result = explode("<a class=\"link fileRef\" href=\"", $pl);
   $awd = implode('', $result);
 
-  $result = explode(".xls",$awd);
-
-
-  for($i = 1; $i < (count($result)+5); $i=$i+2) unset($result[$i]);
-  for($i = 1; $i < (count($result)+5); $i++) if(strlen($result[$i]) < 10) unset($result[$i]);
-  for($i = 0; $i < count($result); $i++) $result[$i] = urldecode($result[$i]);
-
-  $qwer = implode('', $result);
-  $result = explode("</a>", $qwer);
-  array_pop($result);
-
+  $noun = count($result);
+  //for($i = 0; $i < $noun; $i=$i+2) unset($result[$i]);
+  for($i = 0; $i < $noun; $i++) $result[$i] = urldecode($result[$i]);
+  
+  for($i = 0; $i < $noun; $i++){
+  	$result[$i] = strstr($result[$i], '.xls', true);
+  }
+  for($i = 0; $i < $noun; $i++){
+  	if($result[$i] == "") unset($result[$i]);
+  }
+  // array_pop($result);
   for($i = 0; $i < count($result); $i++){
-    if(strpos($result[$i], "Магистратура") === false){
+    if(strpos($result[$i], "Магистратура") === false || strpos($result[$i], "неделя") === false){
       $result[$i] = "http://students.perm.hse.ru".trim($result[$i]).".xls";//если в строке есть слово "Магистратура"
     }else{
       $result[$i] = "http:".trim($result[$i]).".xls";
@@ -52,11 +51,14 @@ function parser(){
     // if($i!=(count($result)-1) && $i!=(count($result)-2)) $result[$i] = "http://students.perm.hse.ru".trim($result[$i]).".xls";
     // else $result[$i] = "http:".trim($result[$i]).".xls";
   }
+  if(in_array("http://students.perm.hse.ru.xls", $result)){
+  	unset($result[array_search("http://students.perm.hse.ru.xls", $result)]);
+  }
+  $result = array_values($result);
   file_put_contents('result.txt', implode("\r\n", $result));
   for($i = 0; $i < count($result); $i++){
     upload_to($result[$i],end(explode("/",$result[$i])));
   }
-  //print_r($result);
 }
 
 
@@ -71,8 +73,29 @@ function update(){
 
 //update();
 
+// $objPHPExcel = PHPExcel_IOFactory::load("files/".searchWeek("21.09.2018"));
+// $objPHPExcel->setActiveSheetIndex(0);//выбрали первый лист
+// $aSheet = $objPHPExcel->getActiveSheet();//перешли на него
 
-//масссивы под существующие на сайте массивы
+//очистили магистров и пересдачи
+// $files_to = scanDirs("files", 1);
+// for($i = 0; $i < count($files_to);$i++){
+//   if(!preg_match("/неделя/",$text)) unset($files_to[$i]);//оставляем только бакалавриат
+// }
+// $files_to = array_reverse(array_values($files_to));
+// $role = [];
+// for($i = 4; $i < 37; $i++){
+//   array_push($role, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
+// }
+
+/* Массивы под существующие на сайте недели
+Формат:
+[0] => 03.12.2018
+[1] => 04.12.2018
+[2] => 05.12.2018
+[3] => 06.12.2018
+[4] => 07.12.2018
+[5] => 08.12.2018  */
 $week_one = [];
 $week_two = [];
 $week_three = [];
@@ -80,7 +103,8 @@ $week_four = [];
 $week_five = [];
 $week_six = [];
 
-//место под названия недель
+/* Место под названия недель
+Формат: "8 неделя" */
 $wp1 = "";
 $wp2 = "";
 $wp3 = "";
@@ -88,7 +112,14 @@ $wp4 = "";
 $wp5 = "";
 $wp6 = "";
 
-//количество пар в какой-либо день
+/* Количество пар в какой-либо день
+Формат:
+[10.12.2018] => 6
+[11.12.2018] => 6
+[12.12.2018] => 5
+[13.12.2018] => 5
+[14.12.2018] => 5
+[15.12.2018] => 2  */
 $we_pa_num1 = [];
 $we_pa_num2 = [];
 $we_pa_num3 = [];
@@ -96,14 +127,44 @@ $we_pa_num4 = [];
 $we_pa_num5 = [];
 $we_pa_num6 = [];
 
-//очистили магистров и пересдачи
-$files_to = scanDirs("files", 1);
-for($i = 0; $i < count($files_to);$i++){
-  if(!preg_match("/неделя/",$files_to[$i])) unset($files_to[$i]);//оставляем только бакалавриат
+function is_in_str($str, $substr){
+   $result = strpos($str, $substr);
+   if ($result === FALSE)  return false;
+   else return true;   
 }
 
-$files_to = array_reverse(array_values($files_to));//развернули и переиндексовали
+//очистили магистров и пересдачи
+$files_to = scanDirs("files", 1);
+$files_to_new = array();
+for($i = 0; $i < count($files_to);$i++){
+	//оставляем только бакалавриат
+  	if(is_in_str($files_to[$i], "неделя")) array_push($files_to_new, $files_to[$i]);
+  	//if(!preg_match("/неделя/",$files_to[$i])) unset($files_to[$i]);
+}
 
+$files_to = $files_to_new;
+
+$keys_temp = array();
+for($i = 0; $i < count($files_to_new); $i++){
+	array_push($keys_temp, substr($files_to_new[$i],0,2));
+}
+asort($keys_temp, SORT_NUMERIC);
+$new_keys = array_keys($keys_temp);
+$news = array();
+for($i = 0; $i < count($new_keys); $i++){
+	$news[$i] = $files_to_new[$new_keys[$i]];
+}
+$files_to = $news;
+
+// for($i = 0; $i < count($keys_temp); $i++){
+// 	if($i == 0) $min = $keys_temp[$i];
+// 	if($min > $keys_temp[$i]) array_unshift($new_list, $keys_temp[$i]); 
+// }
+// $keys = array_values($keys_temp);
+// print_r($keys_temp);
+// sort($files_to);
+// print_r($files_to);
+//$files_to = array_reverse(array_values($files_to));//развернули и переиндексовали
 
 //генерация массивов недель
 function GenAr(){}
@@ -121,19 +182,48 @@ $indexSheet = 0;
 for($j = 0; $j < count($files_to);$j++){
   //array_push($roal, $files_to[$j]);
   $objPHPExcel = PHPExcel_IOFactory::load("files/".$files_to[$j]);
-  if(substr($_GET['way'],-2) == '18') $indexSheet = 0;
-  else if(substr($_GET['way'],-2) == '17') $indexSheet = 1;
-  else if(substr($_GET['way'],-2) == '16') $indexSheet = 3;
-  else if(substr($_GET['way'],-2) == '15') $indexSheet = 5;
-  //echo "В файле: [".$files_to[$j]."] доступно ".$objPHPExcel->getSheetCount()." листов!<br>";
+  $pundon = $objPHPExcel->getSheetNames();//названия всех листов
+  $trul = false;
+  for($i = 0; $i <count($pundon);$i++){
+    $pos1 = stripos($pundon[$i], 'майнор');
+    if($pos1 !== false){
+      $trul = true;
+      break;
+    }
+  }
+  if($objPHPExcel->getSheetCount() == 6 && $trul == true){//если 2 есть оба листа майнором
+    if(substr($_GET['way'],-2) == '18') $indexSheet = 0;
+    else if(substr($_GET['way'],-2) == '17') $indexSheet = 1;
+    else if(substr($_GET['way'],-2) == '16') $indexSheet = 3;
+    else if(substr($_GET['way'],-2) == '15') $indexSheet = 5;
+  }else if($objPHPExcel->getSheetCount() == 5){//если только 1 лист майнором
+    if(stripos($pundon[2], 'майнор') !== false){//если майнор найден для 2 курса
+      if(substr($_GET['way'],-2) == '18') $indexSheet = 0;
+      else if(substr($_GET['way'],-2) == '17') $indexSheet = 1;
+      else if(substr($_GET['way'],-2) == '16') $indexSheet = 3;
+      else if(substr($_GET['way'],-2) == '15') $indexSheet = 4;
+    }else if(stripos($pundon[3], 'майнор') !== false){//если майнор найден у 3 курса
+      if(substr($_GET['way'],-2) == '18') $indexSheet = 0;
+      else if(substr($_GET['way'],-2) == '17') $indexSheet = 1;
+      else if(substr($_GET['way'],-2) == '16') $indexSheet = 2;
+      else if(substr($_GET['way'],-2) == '15') $indexSheet = 4;
+    }
+  }else{//если без майноров
+    if(substr($_GET['way'],-2) == '18') $indexSheet = 0;
+    else if(substr($_GET['way'],-2) == '17') $indexSheet = 1;
+    else if(substr($_GET['way'],-2) == '16') $indexSheet = 2;
+    else if(substr($_GET['way'],-2) == '15') $indexSheet = 3;
+  }
+
+
   $objPHPExcel->setActiveSheetIndex($indexSheet);//выбрали первый лист
   $aSheet = $objPHPExcel->getActiveSheet();//перешли на него
-
-  if($j == 0){
+  //проверяем каждый файл, записывая данные про
+  if($j == 0){//1 файл(первая в списке неделя)
     for($i = 4; $i < 46; $i++){
-      array_push($week_one, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
+      array_push($week_one, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));//добавили в массив недель дни в формате "06.12.2018"
     }
-    $wp1 = trim(substr($files_to[0],0,15));
+    $wp1 = trim(substr($files_to[0],0,15));//записали название недели в формате "8 неделя"
   }else if($j == 1){
     for($i = 4; $i < 46; $i++){
       array_push($week_two, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
@@ -198,7 +288,6 @@ if(count($week_six)){
   //if(!stripos(end($week_six), '0')) unset($week_six[array_search(end($week_six), $week_six)]);
   unset($week_six[array_search(end($week_six), $week_six)]);
 }
-
 
 function get_count_pairs($day, $we_pa_num1, $we_pa_num2, $we_pa_num3, $we_pa_num4, $we_pa_num5, $we_pa_num6){
   if(array_key_exists($day, $we_pa_num1)) $count_pairs = $we_pa_num1[$day];
@@ -445,6 +534,22 @@ function cellCheck($poi, $aSheet, $group_id, $p){
         for($i = 0; $i < count($r2); $i++) $vol2 = $vol2.$r2[$i].' ';
       }
 
+      // $r2 = preg_split("/[\s,]+/", $rol2);
+      // if(iconv_strlen(substr($role,-35)) > 2){
+      //   if(strlen($r2[count($r2)-1]) == 2) unset($r2[array_search(end($r2), $r2)]);
+      //   $first2 = array_pop($r2);
+      //   $second2 = array_pop($r2);
+      //   $qw2 = $second2.' '.$first2;//преподаватель
+      //   $vol2 = $vol1;//пара
+      // }else{
+      //   if(strlen($r2[count($r2)-1]) == 2) unset($r2[array_search(end($r2), $r2)]);
+      //   $first2 = array_pop($r2);
+      //   $second2 = array_pop($r2);
+      //   $qw2 = $second2.' '.$first2;//преподаватель
+      //   $vol2 = "";//пара
+      //   for($i = 0; $i < count($r2); $i++) $vol2 = $vol2.$r2[$i].' ';
+      // }
+
     // array_push($results, $var);
     // $vol1 - название пары
     // $qw1 - имя преподаватель
@@ -487,7 +592,17 @@ function cellCheck($poi, $aSheet, $group_id, $p){
       for($i = 0; $i < count($r1); $i++) $vol = $vol.$r1[$i].' ';
 
       if($poi != ''){
-
+        // $mergedCellsRange = $aSheet->getMergeCells();
+        // $aSheet->mergeCells('A'.$id.':R'.$id);
+        // foreach ($mergedCellsRange as $cells) {
+        //   if ($cell->isInRange($cells)) {
+        //     $group = 'Лекция';//если объединена
+        //     break;
+        //   }else{
+        //     $group = 'Семинар';//если НЕ объединена
+        //     break;
+        //   }
+        // }
 
         //(P.S. можно поспать)
         if($_GET['group_id'] == '1'){
@@ -592,10 +707,38 @@ function parse_to($dayR,$way_learn,$group_id, $week_one, $week_two, $week_three,
   $date_tom = date('d.m.y', time() + 86400);//посчитали завтрашний день
   //strtotime("+1 day");
   $objPHPExcel = PHPExcel_IOFactory::load("files/".searchWeek($dayR, $week_one, $week_two, $week_three, $week_five, $week_six, $wp1, $wp2, $wp3, $wp4, $wp5, $wp6));//выбираем нужный excel файл и дату(на завтра) date("d.m.Y", $date_tom))
-  if(substr($way_learn,-2) == '18') $indexSheet = 0;
-  else if(substr($way_learn,-2) == '17') $indexSheet = 1;
-  else if(substr($way_learn,-2) == '16') $indexSheet = 3;
-  else if(substr($way_learn,-2) == '15') $indexSheet = 5;
+  $pundon = $objPHPExcel->getSheetNames();//названия всех листов
+  $trul = false;
+  for($i = 0; $i <count($pundon);$i++){
+    $pos1 = stripos($pundon[$i], 'майнор');
+    if($pos1 !== false){
+      $trul = true;
+      break;
+    }
+  }
+  if($objPHPExcel->getSheetCount() == 6 && $trul == true){//если 2 есть оба листа майнором
+    if(substr($_GET['way'],-2) == '18') $indexSheet = 0;
+    else if(substr($_GET['way'],-2) == '17') $indexSheet = 1;
+    else if(substr($_GET['way'],-2) == '16') $indexSheet = 3;
+    else if(substr($_GET['way'],-2) == '15') $indexSheet = 5;
+  }else if($objPHPExcel->getSheetCount() == 5){//если только 1 лист майнором
+    if(stripos($pundon[2], 'майнор') !== false){//если майнор найден для 2 курса
+      if(substr($_GET['way'],-2) == '18') $indexSheet = 0;
+      else if(substr($_GET['way'],-2) == '17') $indexSheet = 1;
+      else if(substr($_GET['way'],-2) == '16') $indexSheet = 3;
+      else if(substr($_GET['way'],-2) == '15') $indexSheet = 4;
+    }else if(stripos($pundon[3], 'майнор') !== false){//если майнор найден у 3 курса
+      if(substr($_GET['way'],-2) == '18') $indexSheet = 0;
+      else if(substr($_GET['way'],-2) == '17') $indexSheet = 1;
+      else if(substr($_GET['way'],-2) == '16') $indexSheet = 2;
+      else if(substr($_GET['way'],-2) == '15') $indexSheet = 4;
+    }
+  }else{//если без майноров
+    if(substr($_GET['way'],-2) == '18') $indexSheet = 0;
+    else if(substr($_GET['way'],-2) == '17') $indexSheet = 1;
+    else if(substr($_GET['way'],-2) == '16') $indexSheet = 2;
+    else if(substr($_GET['way'],-2) == '15') $indexSheet = 3;
+  }
   $objPHPExcel->setActiveSheetIndex($indexSheet);//выбрали первый лист
   $aSheet = $objPHPExcel->getActiveSheet();//перешли на него
 
@@ -754,11 +897,18 @@ function parse_to($dayR,$way_learn,$group_id, $week_one, $week_two, $week_three,
 }
 
 
-
-
 if(isset($_GET['update']) or isset($_POST['update'])) update();
 else parse_to($_GET['day'], $_GET['way'], $_GET['group_id'], $week_one, $week_two, $week_three, $week_five, $week_six, $wp1, $wp2, $wp3, $wp4, $wp5, $wp6, $we_pa_num1, $we_pa_num2, $we_pa_num3, $we_pa_num4, $we_pa_num5, $we_pa_num6);
 
+//$indexSheet = 0;
+
+// if(substr($_GET['way'],-2) == '18') $indexSheet = 0;
+// else if(substr($_GET['way'],-2) == '17') $indexSheet = 1;
+// else if(substr($_GET['way'],-2) == '16') $indexSheet = 3;
+// else if(substr($_GET['way'],-2) == '15') $indexSheet = 5;
+
+//$objPHPExcel->setActiveSheetIndex($indexSheet);
+//выбрали первый лист
 
 ?>
 

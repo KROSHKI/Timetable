@@ -127,118 +127,224 @@ function upload_to($filen, $file_new){
     fclose($fp);
 }
 
+$indexSheet = 0;
 
-
-$indexSheet = 0;// у 2 курса
-if($_GET['way'] == 'mi'){
-  if($_GET['course'] == '2') $indexSheet = 2;// у 2 курса
-  else if($_GET['course'] == '3') $indexSheet = 4;// у 3 курса
-  else if($_GET['course'] == '1') $indexSheet = 10;
-  else if($_GET['course'] == '4') $indexSheet = 10;
-}else if($_GET['way'] == 'ba'){
-  if($_GET['course'] == '1') $indexSheet = 0;
-  else if($_GET['course'] == '2') $indexSheet = 1;
-  else if($_GET['course'] == '3') $indexSheet = 3;
-  else if($_GET['course'] == '4') $indexSheet = 5;
-}
-
-
-if($indexSheet != 10){
   //место под сеществующие недели(как минимум 6)
   for($j = 0; $j < count($files_to);$j++){
     //array_push($roal, $files_to[$j]);
     $objPHPExcel = PHPExcel_IOFactory::load("files/".$files_to[$j]);
+    $pundon = $objPHPExcel->getSheetNames();//названия всех листов
+    $trul = false;
+    for($i = 0; $i <count($pundon);$i++){
+      $pos1 = stripos($pundon[$i], 'майнор');
+      if($pos1 !== false){
+        $trul = true;
+        break;
+      }
+    }
 
-    //echo "В файле: [".$files_to[$j]."] доступно ".$objPHPExcel->getSheetCount()." листов!<br>";
-    $objPHPExcel->setActiveSheetIndex($indexSheet);//выбрали первый лист
-    $aSheet = $objPHPExcel->getActiveSheet();//перешли на него
-    print_r($objPHPExcel->getSheetNames());
-    //array_unique – уникальный массив
-    if($j == 0){
-      for($i = 4; $i < 46; $i++){
-        array_push($week_one, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
+    if($objPHPExcel->getSheetCount() == 6 && $trul == true){//если 2 есть оба листа майнором
+      if($_GET['way'] == 'mi'){
+        if($_GET['course'] == '2') $indexSheet = 2;// у 2 курса
+        else if($_GET['course'] == '3') $indexSheet = 4;// у 3 курса
+        else if($_GET['course'] == '1') $indexSheet = 10;
+        else if($_GET['course'] == '4') $indexSheet = 10;
+      }else if($_GET['way'] == 'ba'){
+        if($_GET['course'] == '1') $indexSheet = 0;
+        else if($_GET['course'] == '2') $indexSheet = 1;
+        else if($_GET['course'] == '3') $indexSheet = 3;
+        else if($_GET['course'] == '4') $indexSheet = 5;
       }
-      $wp1 = trim(substr($files_to[0],0,15));
-    }else if($j == 1){
-      for($i = 4; $i < 46; $i++){
-        array_push($week_two, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
+    }else if($objPHPExcel->getSheetCount() == 5){//если только 1 лист майнором
+      if(stripos($pundon[2], 'майнор') !== false){//если майнор найден для 2 курса
+        if($_GET['way'] == 'mi'){
+          if($_GET['course'] == '2') $indexSheet = 2;// у 2 курса
+          else if($_GET['course'] == '3') $indexSheet = 10;// у 3 курса
+          else if($_GET['course'] == '1') $indexSheet = 10;
+          else if($_GET['course'] == '4') $indexSheet = 10;
+        }else if($_GET['way'] == 'ba'){
+          if($_GET['course'] == '1') $indexSheet = 0;
+          else if($_GET['course'] == '2') $indexSheet = 1;
+          else if($_GET['course'] == '3') $indexSheet = 3;
+          else if($_GET['course'] == '4') $indexSheet = 4;
+        }
+      }else if(stripos($pundon[3], 'майнор') !== false){//если майнор найден у 3 курса
+        if($_GET['way'] == 'mi'){
+          if($_GET['course'] == '3') $indexSheet = 3;// у 3 курса
+          else if($_GET['course'] == '2') $indexSheet = 10;// у 2 курса
+          else if($_GET['course'] == '1') $indexSheet = 10;
+          else if($_GET['course'] == '4') $indexSheet = 10;
+        }else if($_GET['way'] == 'ba'){
+          if($_GET['course'] == '1') $indexSheet = 0;
+          else if($_GET['course'] == '2') $indexSheet = 1;
+          else if($_GET['course'] == '3') $indexSheet = 2;
+          else if($_GET['course'] == '4') $indexSheet = 4;
+        }
       }
-      $wp2 = trim(substr($files_to[1],0,15));
-    }else if($j == 2){
-      for($i = 4; $i < 46; $i++){
-        array_push($week_three, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
+    }else{//если без майноров
+      if($_GET['way'] == 'mi'){
+        if($_GET['course'] == '3') $indexSheet = 10;// у 3 курса
+        else if($_GET['course'] == '2') $indexSheet = 10;// у 2 курса
+        else if($_GET['course'] == '1') $indexSheet = 10;
+        else if($_GET['course'] == '4') $indexSheet = 10;
+      }else if($_GET['way'] == 'ba'){
+        if($_GET['course'] == '1') $indexSheet = 0;
+        else if($_GET['course'] == '2') $indexSheet = 1;
+        else if($_GET['course'] == '3') $indexSheet = 2;
+        else if($_GET['course'] == '4') $indexSheet = 3;
       }
-      $wp3 = trim(substr($files_to[2],0,15));
-    }else if($j == 3){
-      for($i = 4; $i < 46; $i++){
-        array_push($week_four, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
+    }
+    if($indexSheet != 10){
+      //echo "В файле: [".$files_to[$j]."] доступно ".$objPHPExcel->getSheetCount()." листов!<br>";
+      $objPHPExcel->setActiveSheetIndex($indexSheet);//выбрали первый лист
+      $aSheet = $objPHPExcel->getActiveSheet();//перешли на него
+
+      if($j == 0){
+        for($i = 4; $i < 46; $i++){
+          array_push($week_one, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
+        }
+        $wp1 = trim(substr($files_to[0],0,15));
+      }else if($j == 1){
+        for($i = 4; $i < 46; $i++){
+          array_push($week_two, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
+        }
+        $wp2 = trim(substr($files_to[1],0,15));
+      }else if($j == 2){
+        for($i = 4; $i < 46; $i++){
+          array_push($week_three, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
+        }
+        $wp3 = trim(substr($files_to[2],0,15));
+      }else if($j == 3){
+        for($i = 4; $i < 46; $i++){
+          array_push($week_four, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
+        }
+        $wp4 = trim(substr($files_to[3],0,15));
+      }else if($j == 4){
+        for($i = 4; $i < 46; $i++){
+          array_push($week_five, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
+        }
+        $wp5 = trim(substr($files_to[4],0,15));
+      }else if($j == 5){
+        for($i = 4; $i < 46; $i++){
+          array_push($week_six, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
+        }
+        $wp6 = trim(substr($files_to[5],0,15));
       }
-      $wp4 = trim(substr($files_to[3],0,15));
-    }else if($j == 4){
-      for($i = 4; $i < 46; $i++){
-        array_push($week_five, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
-      }
-      $wp5 = trim(substr($files_to[4],0,15));
-    }else if($j == 5){
-      for($i = 4; $i < 46; $i++){
-        array_push($week_six, trim(substr(activeMergedCells(exNumToStr(0,$i), $aSheet),-10)));
-      }
-      $wp6 = trim(substr($files_to[5],0,15));
     }
   }
-  //делаем значения уникальными
-  if(count($week_one)){
-    $we_pa_num1 = array_count_values($week_one);
-    $week_one = array_values(array_unique($week_one));
-    //if(!stripos(end($week_one), '0')) unset($week_one[array_search(end($week_one), $week_one)]);
-    unset($week_one[array_search(end($week_one), $week_one)]);
-  }
-  if(count($week_two)){
-    $we_pa_num2 = array_count_values($week_two);
-    $week_two = array_values(array_unique($week_two));
-    //if(!stripos(end($week_two), '0')) unset($week_two[array_search(end($week_two), $week_two)]);
-    unset($week_two[array_search(end($week_two), $week_two)]);
-  }
-  if(count($week_three)){
-    $we_pa_num3 = array_count_values($week_three);
-    $week_three = array_values(array_unique($week_three));
-    //if(!stripos(end($week_three), '0')) unset($week_three[array_search(end($week_three), $week_three)]);
-    unset($week_three[array_search(end($week_three), $week_three)]);
-  }
-  if(count($week_four)){
-    $we_pa_num4 = array_count_values($week_four);
-    $week_four = array_values(array_unique($week_four));
-    //if(!stripos(end($week_four), '0')) unset($week_four[array_search(end($week_four), $week_four)]);
-    unset($week_four[array_search(end($week_four), $week_four)]);
-  }
-  if(count($week_five)){
-    $we_pa_num5 = array_count_values($week_five);
-    $week_five = array_values(array_unique($week_five));
-    //if(!stripos(end($week_five), '0')) unset($week_five[array_search(end($week_five), $week_five)]);
-    unset($week_five[array_search(end($week_five), $week_five)]);
-  }
-  if(count($week_six)){
-    $we_pa_num6 = array_count_values($week_six);
-    $week_six = array_values(array_unique($week_six));
-    //if(!stripos(end($week_six), '0')) unset($week_six[array_search(end($week_six), $week_six)]);
-    unset($week_six[array_search(end($week_six), $week_six)]);
-  }
+    //делаем значения уникальными
+    if(count($week_one)){
+      $we_pa_num1 = array_count_values($week_one);
+      $week_one = array_values(array_unique($week_one));
+      //if(!stripos(end($week_one), '0')) unset($week_one[array_search(end($week_one), $week_one)]);
+      unset($week_one[array_search(end($week_one), $week_one)]);
+    }
+    if(count($week_two)){
+      $we_pa_num2 = array_count_values($week_two);
+      $week_two = array_values(array_unique($week_two));
+      //if(!stripos(end($week_two), '0')) unset($week_two[array_search(end($week_two), $week_two)]);
+      unset($week_two[array_search(end($week_two), $week_two)]);
+    }
+    if(count($week_three)){
+      $we_pa_num3 = array_count_values($week_three);
+      $week_three = array_values(array_unique($week_three));
+      //if(!stripos(end($week_three), '0')) unset($week_three[array_search(end($week_three), $week_three)]);
+      unset($week_three[array_search(end($week_three), $week_three)]);
+    }
+    if(count($week_four)){
+      $we_pa_num4 = array_count_values($week_four);
+      $week_four = array_values(array_unique($week_four));
+      //if(!stripos(end($week_four), '0')) unset($week_four[array_search(end($week_four), $week_four)]);
+      unset($week_four[array_search(end($week_four), $week_four)]);
+    }
+    if(count($week_five)){
+      $we_pa_num5 = array_count_values($week_five);
+      $week_five = array_values(array_unique($week_five));
+      //if(!stripos(end($week_five), '0')) unset($week_five[array_search(end($week_five), $week_five)]);
+      unset($week_five[array_search(end($week_five), $week_five)]);
+    }
+    if(count($week_six)){
+      $we_pa_num6 = array_count_values($week_six);
+      $week_six = array_values(array_unique($week_six));
+      //if(!stripos(end($week_six), '0')) unset($week_six[array_search(end($week_six), $week_six)]);
+      unset($week_six[array_search(end($week_six), $week_six)]);
+    }
 
-  // if(isset($_GET['update']) or isset($_POST['update'])){ update(); }
-  // else {
-  //   $nul = revArr($indexSheet, $week_one[0], $week_one, $week_two, $week_three, $week_five, $week_six, $wp1, $wp2, $wp3, $wp4, $wp5, $wp6);
-  //   for($i = 0; $i < count($nul); $i++) {
-  //     if($i != count($nul)-1) echo $nul[$i].'•';
-  //     else echo $nul[$i];
-  //   }
-  // }
-  echo get_now_week($_GET['day'], $week_one, $week_two, $week_three, $week_five, $week_six, $wp1, $wp2, $wp3, $wp4, $wp5, $wp6).'<br>';
-  echo $objPHPExcel->getSheetCount().'<br>';
-  print_r($objPHPExcel->getSheetNames()).'<br>';
-  echo $files_to[0];
-}else{
-  echo 'none';
-}
+    if(isset($_GET['update']) or isset($_POST['update'])){ update(); }
+    else {
+      $objPHPExcel = PHPExcel_IOFactory::load("files/".searchWeek(get_now_day(date("d.m.Y"), $week_one, $week_two, $week_three, $week_five, $week_six)[0], $week_one, $week_two, $week_three, $week_five, $week_six, $wp1, $wp2, $wp3, $wp4, $wp5, $wp6));
+
+      $pundon = $objPHPExcel->getSheetNames();//названия всех листов
+      $trul = false;
+      for($i = 0; $i <count($pundon);$i++){
+        $pos1 = stripos($pundon[$i], 'майнор');
+        if($pos1 !== false){
+          $trul = true;
+          break;
+        }
+      }
+
+      if($objPHPExcel->getSheetCount() == 6){//если 2 есть оба листа майнором
+        if($_GET['way'] == 'mi'){
+          if($_GET['course'] == '2') $indexSheet = 2;// у 2 курса
+          else if($_GET['course'] == '3') $indexSheet = 4;// у 3 курса
+          else if($_GET['course'] == '1') $indexSheet = 10;
+          else if($_GET['course'] == '4') $indexSheet = 10;
+        }else if($_GET['way'] == 'ba'){
+          if($_GET['course'] == '1') $indexSheet = 0;
+          else if($_GET['course'] == '2') $indexSheet = 1;
+          else if($_GET['course'] == '3') $indexSheet = 3;
+          else if($_GET['course'] == '4') $indexSheet = 5;
+        }
+      }else if($objPHPExcel->getSheetCount() == 5){//если только 1 лист майнором
+        if(stripos($pundon[2], 'майнор') !== false){//если майнор найден для 2 курса
+          if($_GET['way'] == 'mi'){
+            if($_GET['course'] == '2') $indexSheet = 2;// у 2 курса
+            else if($_GET['course'] == '3') $indexSheet = 10;// у 3 курса
+            else if($_GET['course'] == '1') $indexSheet = 10;
+            else if($_GET['course'] == '4') $indexSheet = 10;
+          }else if($_GET['way'] == 'ba'){
+            if($_GET['course'] == '1') $indexSheet = 0;
+            else if($_GET['course'] == '2') $indexSheet = 1;
+            else if($_GET['course'] == '3') $indexSheet = 3;
+            else if($_GET['course'] == '4') $indexSheet = 4;
+          }
+        }else if(stripos($pundon[3], 'майнор') !== false){//если майнор найден у 3 курса
+          if($_GET['way'] == 'mi'){
+            if($_GET['course'] == '3') $indexSheet = 3;// у 3 курса
+            else if($_GET['course'] == '2') $indexSheet = 10;// у 2 курса
+            else if($_GET['course'] == '1') $indexSheet = 10;
+            else if($_GET['course'] == '4') $indexSheet = 10;
+          }else if($_GET['way'] == 'ba'){
+            if($_GET['course'] == '1') $indexSheet = 0;
+            else if($_GET['course'] == '2') $indexSheet = 1;
+            else if($_GET['course'] == '3') $indexSheet = 2;
+            else if($_GET['course'] == '4') $indexSheet = 4;
+          }
+        }
+      }else{//если без майноров
+        if($_GET['way'] == 'mi'){
+          if($_GET['course'] == '3') $indexSheet = 10;// у 3 курса
+          else if($_GET['course'] == '2') $indexSheet = 10;// у 2 курса
+          else if($_GET['course'] == '1') $indexSheet = 10;
+          else if($_GET['course'] == '4') $indexSheet = 10;
+        }else if($_GET['way'] == 'ba'){
+          if($_GET['course'] == '1') $indexSheet = 0;
+          else if($_GET['course'] == '2') $indexSheet = 1;
+          else if($_GET['course'] == '3') $indexSheet = 2;
+          else if($_GET['course'] == '4') $indexSheet = 3;
+        }
+      }
+      if($indexSheet != 10){
+        $nul = revArr($indexSheet, get_now_day(date("d.m.Y"), $week_one, $week_two, $week_three, $week_five, $week_six)[0], $week_one, $week_two, $week_three, $week_five, $week_six, $wp1, $wp2, $wp3, $wp4, $wp5, $wp6);
+        for($i = 0; $i < count($nul); $i++) {
+          if($i != count($nul)-1) echo $nul[$i].'•';
+          else echo $nul[$i];
+        }
+      }else{echo 'none';}
+    }
+
+//echo '<br>'.get_now_day(date("d.m.Y"), $week_one, $week_two, $week_three, $week_five, $week_six)[0];
 
 function get_count_pairs($day, $we_pa_num1, $we_pa_num2, $we_pa_num3, $we_pa_num4, $we_pa_num5, $we_pa_num6){
   if(array_key_exists($day, $we_pa_num1)) $count_pairs = $we_pa_num1[$day];
